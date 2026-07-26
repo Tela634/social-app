@@ -14,7 +14,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // --- CONFIGURATION ---
-const JWT_SECRET = process.env.JWT_SECRET || 'c8b51e33dc4e39c1dd60f9abf929a067';
+const JWT_SECRET = process.env.JWT_SECRET || '8d418f840ff26ad7af47b6573133333a';
 const TWILIO_SID = process.env.TWILIO_SID || 'AC7375c6a24441b390b22aa4a9248b0751';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || '9f3b0cf88c53e0508dd856559cfc524e';
 const TWILIO_SERVICE = process.env.TWILIO_SERVICE || 'VA828dbf437ee2a2dfa8ba263625dc2e63';
