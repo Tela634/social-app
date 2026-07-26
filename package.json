@@ -17,7 +17,7 @@
   "bugs": {
     "url": "https://github.com/Tela634/social-app/issues"
   },
-  "homepage": "https://github.com/Tela634/social-app#readm>
+  "homepage": "https://github.com/Tela634/social-app#readme",   
   "dependencies": {
   "bcryptjs": "^3.0.3",
   "ejs": "^6.0.1",
