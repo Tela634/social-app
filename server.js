@@ -14,7 +14,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // --- CONFIGURATION ---
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_change_me';
+const JWT_SECRET = process.env.JWT_SECRET || 'c8b51e33dc4e39c1dd60f9abf929a067';
 const TWILIO_SID = process.env.TWILIO_SID || 'your_sid';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || 'your_token';
 const TWILIO_SERVICE = process.env.TWILIO_SERVICE || 'your_service_id';
