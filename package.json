@@ -1,0 +1,30 @@
+{
+  "name": "social-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+  "start": "node server.js"
+},   
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tela634/social-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Tela634/social-app/issues"
+  },
+  "homepage": "https://github.com/Tela634/social-app#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io": "^4.8.3",
+    "sql.js": "^1.14.1"
+  }
+}
