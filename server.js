@@ -96,4 +96,10 @@ app.post('/post', (req, res) => {
 initDB().then(() => {
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-});   
+// Add this to catch the error early
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err.message);
+  console.error('Stack:', err.stack);
+  process.exit(1);
+});
+          
