@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ChatApp</title>
+  <style>
+    :root { --bg: #e5ddd5; --header: #075e54; --accent: #25d366; --white: #fff; }
+    body { margin: 0; font-family: sans-serif; background: var(--bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    /* Header */
+    header { background: var(--header); color: var(--white); padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* Main Content */
+    #app-container { flex: 1; overflow-y: auto; position: relative; }
+    .tab-content { display: none; padding: 10px; height: 100%; }
+    .tab-content.active { display: block; }
+
+    /* Chat List & Bubbles */
+    .chat-item { background: var(--white); padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; }
+    .message-bubble { background: #dcf8c6; padding: 8px 12px; border-radius: 8px; margin: 5px 0; max-width: 70%; position: relative; }
+    .message-bubble.sent { background: #dcf8c6; margin-left: auto; }
+    .message-bubble.received { background: var(--white); margin-right: auto; }
+    .edited-tag { font-size: 0.7em; color: #888; font-style: italic; }
+
+    /* Bottom Nav */
+    nav { background: var(--white); display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #ccc; }
+    nav button { background: none; border: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; }
+    
+    /* Floating New Chat Button */
+    #new-chat-fab { position: absolute; bottom: 70px; right: 20px; background: var(--accent); color: white; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: opacity 0.5s; }
+    #new-chat-fab.hidden { opacity: 0; pointer-events: none; }
+    #new-chat-arrow { position: absolute; top: -40px; right: 10px; background: #333; color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; display: none; cursor: pointer; }
+
+    /* Login Modal */
+    #login-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: white; padding: 20px; border-radius: 8px; width: 80%; max-width: 300px; text-align: center; }
+    input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
+    button.primary { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 4px; width: 100%; cursor: pointer; }
+
+    /* QR Modal */
+    #qr-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; flex-direction: column; align-items: center; justify-content: center; }
+    #qr-image { width: 250px; height: 250px; margin: 20px; }
+  </style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="login-modal">
+    <div class="modal-content">
+      <h3>WhatsApp Clone</h3>
+      <input type="tel" id="phone" placeholder="+1234567890">
+      <button class="primary" onclick="sendOTP()">Send OTP</button>
+      <div id="otp-section" style="display:none; margin-top:10px;">
+        <input type="text" id="otp" placeholder="Enter OTP">
+        <button class="primary" onclick="verifyOTP()">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Pairing Screen -->
+  <div id="qr-modal">
+    <h3>Link Device</h3>
+    <img id="qr-image" src="" alt="QR Code">
+    <p>Scan with your main phone</p>
+    <button class="primary" onclick="closeQR()" style="width:auto; margin-top:20px;">Cancel</button>
+  </div>
+
+  <header>
+    <span id="header-title">Chats</span>
+    <span style="font-size:12px;">🔒 End-to-End Encrypted</span>
+  </header>
+
+  <div id="app-container">
+    <!-- Chats Tab -->
+    <div id="tab-chats" class="tab-content active">
+      <div id="chat-list"></div>
+    </div>
+    <!-- Status Tab -->
+    <div id="tab-status" class="tab-content"><h3>Status Updates</h3></div>
+    <!-- Calls Tab -->
+    <div id="tab-calls" class="tab-content"><h3>Call Logs</h3></div>
+    <!-- Settings Tab -->
+    <div id="tab-settings" class="tab-content">
+      <h3>Settings</h3>
+      <p>Theme: Classic</p>
+      <p>Auto-Delete: 2 Weeks</p>
+      <button class="primary" onclick="showQR()">Link a Device</button>
+      <button class="primary" style="background:#f44336; margin-top:10px;" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- Floating Action Button -->
+  <button id="new-chat-fab" onclick="startNewChat()">+</button>
+  <div id="new-chat-arrow" onclick="restoreFab()">▲ Restore</div>
+
+  <nav>
+    <button onclick="switchTab('chats')">💬<br>Chats</button>
+    <button onclick="switchTab('status')">⭕<br>Status</button>
+    <button onclick="switchTab('calls')">📞<br>Calls</button>
+    <button onclick="switchTab('settings')">⚙️<br>Settings</button>
+  </nav>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let myPhone = '';
+    let token = '';
+
+    // --- Auth Logic ---
+    async function sendOTP() {
+      const phone = document.getElementById('phone').value;
+      const res = await fetch('/send-otp', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone }) });
+      const data = await res.json();
+      if(data.success) {
+        document.getElementById('otp-section').style.display = 'block';
+        alert('OTP Sent (Check console for Demo Mode)');
+      }
+    }
+
+    async function verifyOTP() {
+      const phone = document.getElementById('phone').value;
+      const code = document.getElementById('otp').value;
+      const res = await fetch('/verify-otp', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone, code }) });
+      const data = await res.json();
+      if(data.token) {
+        token = data.token;
+        myPhone = data.phone;
+        socket.emit('login', token);
+        document.getElementById('login-modal').style.display = 'none';
+        startAutoHide();
+      }
+    }
+
+    // --- UI Logic ---
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      document.getElementById('header-title').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
+    }
+
+    function startNewChat() {
+      document.getElementById('new-chat-fab').classList.add('hidden');
+      document.getElementById('new-chat-arrow').style.display = 'block';
+      // Show chat input logic here
+    }
+
+    function restoreFab() {
+      document.getElementById('new-chat-fab').classList.remove('hidden');
+      document.getElementById('new-chat-arrow').style.display = 'none';
+    }
+
+    function startAutoHide() {
+      setTimeout(() => {
+        if(!document.getElementById('new-chat-fab').classList.contains('hidden')) {
+          startNewChat();
+        }
+      }, 5000);
+    }
+
+    function showQR() {
+      document.getElementById('qr-modal').style.display = 'flex';
+      fetch(`/pair-qr?socketId=${socket.id}`).then(r => r.json()).then(data => {
+        document.getElementById('qr-image').src = data.qrImage;
+      });
+    }
+    function closeQR() { document.getElementById('qr-modal').style.display = 'none'; }
+    function logout() { location.reload(); }
+
+    // --- Message Logic ---
+    socket.on('new_message', (msg) => {
+      const chatList = document.getElementById('chat-list');
+      const div = document.createElement('div');
+      div.className = `message-bubble ${msg.from === myPhone ? 'sent' : 'received'}`;
+      div.innerHTML = `${msg.content} <small class="edited-tag">${msg.edited ? '(edited)' : ''}</small>`;
+      
+      // Context Menu for Edit/Unsend/React
+      div.oncontextmenu = (e) => {
+        e.preventDefault();
+        const action = prompt("Actions: 'edit', 'unsend', 'react ❤️'");
+        if(action === 'unsend') socket.emit('unsend_message', { msgId: msg.id });
+        if(action.startsWith('react')) socket.emit('react_message', { msgId: msg.id, emoji: action.split(' ')[1] });
+        if(action === 'edit') {
+          const newText = prompt("Edit message:", msg.content);
+          if(newText) socket.emit('edit_message', { msgId: msg.id, newContent: newText });
+        }
+      };
+      
+      chatList.prepend(div);
+    });
+
+    socket.on('message_edited', (data) => {
+      // Update UI logic here
+    });
+    
+    socket.on('message_unsent', (data) => {
+       // Remove message from UI
+    });
+
+    // AI Search
+    function searchMessages(query) {
+      socket.emit('ai_search', { query });
+    }
+    socket.on('search_results', (results) => {
+      console.log("AI Search Results:", results);
+      alert(`Found ${results.length} messages.`);
+    });
+
+  </script>
+</body>
+</html>   
